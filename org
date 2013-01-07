@@ -1,0 +1,1829 @@
+{% extends "site_base.html" %}
+
+{% load i18n %}
+{% load ifsetting_tag %}
+{% load threadedcommentstags %}
+{% load mptt_tags %}
+{% load avatar_tags %}
+{% load taggit_extras %}
+{% load pagination_tags %}
+{% load hitcount_tags %}
+{% block meta_description %}
+<meta name="description" content="{{org.city}}{{org.name}}:位于{{org.city}}{{org.district}}{{org.block}},专业提供{% for feature in org.features.all %}{{feature.name}},{%endfor%}等早期教育服务，想了解{{org.name}}最新的课程安排，亲子活动，促销信息，家长点评信息，电话，地址，价格，营业时间，请进入{{org.name}}的详细页面" />
+{% endblock %}
+{% block meta_keywords %}
+<meta name="keywords" content="{{org.name}}，{{org.city}}，{{org.district}}，{{org.category}}，{% for feature in org.features.all %}{{feature.name}}，{%endfor%}课程，亲子活动，早教促销信息，家长点评" />
+{% endblock %}
+{% block head_title %}{{org.name}}{% endblock %}
+{% block extra_head %}
+<script type="text/javascript" src="http://api.map.baidu.com/api?v=1.3"></script>
+{% include "org/pic_big_view.js.html" %}
+<script>  	
+	$(document).ready(function(){
+		if('{{user}}'!='AnonymousUser'){
+			$.ajax({
+				type : "get",
+				url : "/org/is_sellect_button_tools/",
+				data : {
+					'user_id':{{user.id}},
+					'type_id':{{org.id}},
+					'type':'org',
+					'button_type':'collect'
+				},
+				dataType : "json",
+				success : function(data) {
+					// alert(data['is_sellect']);
+					if(data['is_sellect'] == 'true'){
+						document.getElementById('user_collect').style.display="none";
+						document.getElementById('user_cancle_collect').style.display="inline";
+					}
+				},
+				error : function(){
+					//alert("error!!!");
+				}
+			});
+			
+			$.ajax({
+				type : "get",
+				url : "/org/is_sellect_button_tools/",
+				data : {
+					'user_id':{{user.id}},
+					'type_id':{{org.id}},
+					'type':'org',
+					'button_type':'enjoy'
+				},
+				dataType : "json",
+				success : function(data) {
+					// alert(data['is_sellect']);
+					if(data['is_sellect'] == 'true'){
+						document.getElementById('user_enjoy').style.display="none";
+						document.getElementById('user_cancle_enjoy').style.display="inline";
+					}
+				},
+				error : function(){
+					//alert("error!!!");
+				}
+			});
+		}
+	});
+	
+	$(document).ready(function(){
+		var json1={};
+		if('{{user}}'!='AnonymousUser'){
+			json1={'user_id':{{ user.id }}};
+		}else{
+			json1={'user_id':0};
+		}
+		$.ajax({
+			type : "get",
+			url : "/org/{{org.id}}/is_follow",
+			data : json1,
+			dataType : "json",
+			success : function(data) {
+			if(data['message']=='exists'){
+				$('#followit').html('取消关注('+data['followers']+')').css({color:'grey'}).on('click',unfollow);
+			}else{
+				$('#followit').html('关注('+data['followers']+')').on('click',followit);
+			}
+			},
+			error : function(){
+			//alert("error!!!");
+			}
+		});
+	
+		var followit=function(){
+		if('{{user}}'!='AnonymousUser'){
+			$.ajax({
+				type : "get",
+				url : '/org/{{org.id}}/follow',
+				data : {},
+				dataType : "json",
+				success : function(data) {
+					$('#followit').html('取消关注('+data['followers']+')').css({color:'grey'}).off('click',followit).on('click',unfollow);
+				},
+				error : function(){
+				// alert("error!!!");
+				}
+			});
+		}else{
+			showlogin();
+		}
+		}
+		var unfollow=function(){
+			$.ajax({
+				type : "get",
+				url : '/org/{{org_id}}/unfollow',
+				data : {},
+				dataType : "json",
+				success : function(data) {
+					$('#followit').html('关注('+data['followers']+')').css({color:'#0088CC'}).off('click',unfollow).on('click',followit);
+				},
+				error : function(){
+				// alert("error!!!");
+				}
+			});
+		}
+	});
+</script>
+<script type="text/javascript">
+    $(document).ready(function() {
+        {% get_hit_count_javascript for org %}
+    });
+</script>
+<style>
+	.orgdetail_btn	img {
+		    border: 0 none;
+		    bottom: 43px;
+		    left: 10px;
+		    max-width: none;
+		    position: relative;
+	}
+	.orgsc,.orgsg,.orgsg2,.dianpbtn a{
+		cursor: pointer;
+	}
+	.orgdianping,.dianpbtn a{
+		text-decoration:none;
+		cursor: pointer;
+	}
+	.orgdianpconr {
+	    margin-top: 10px;
+	    width: 205px;
+	}
+	
+	.nav-tabs > .active > a, .nav-tabs > .active > a:hover {
+	    color: #ffffff;
+	}
+	.selOuter {
+		position: relative;
+		width: 72px;
+		height: 15px;
+		display: inline-block;
+		color: #729D07;
+		cursor: pointer;
+	}
+	.selOuter select {
+		top: -21px;
+		left: 0px;
+		position: absolute;
+		width: 60px;
+		height: 35px;
+		opacity: 0;
+		cursor: pointer;
+		filter: alpha(opacity=0);
+	}
+	table.altrowstable {
+		font-family: verdana, arial, sans-serif;
+		font-size: 13px;
+		border-width: 1px;
+		border-color: #a9c6c9;
+		border-collapse: collapse;
+	}
+	table.altrowstable th {
+		border-width: 1px;
+		padding: 8px;
+		border-style: solid;
+		border-color: #a9c6c9;
+	}
+	table.altrowstable td {
+		border-width: 1px;
+		padding: 8px;
+		border-style: solid;
+		border-color: #a9c6c9;
+	}
+	.ui-dialog-content ui-widget-content2{
+		width:159px;
+	}
+	.yuyuedl {
+	    margin: 16px auto;
+	    overflow: hidden;
+	    width: 650px;
+	}
+	.logincon_l {
+	    height: 300px;
+	    overflow: hidden;
+	    width: 333px;
+	    margin-left: 10px;
+	}
+	.logincon_input1 {
+	    border: 1px solid #E3E3E3;
+	    color: #666666;
+	    height: 25px;
+	    line-height: 33px;
+	    text-indent: 6px;
+	    width: 230px;
+	}
+</style>
+{% endblock %}
+
+{% block body %}
+<input id="org_id" type="hidden" name="org_id" value="{{org.id}}"/>
+<input id="id_geolocation" type="hidden" name="geolocation" value="{{org.geolocation}}"/>
+<input id="id_latitude" type="hidden" name="latitude" value="{{org.latitude}}"/>
+<input id="id_longitude" type="hidden" name="longitude" value="{{org.longitude}}"/>
+<div class="agency">
+	<div class="agencyl">
+		<div class="orgjiben">
+			<div class="orgjibent">
+				<div class="orgjibent1">
+					{{org.name}} {% if org.owner %}<img src="{{ STATIC_URL }}img/orgdetail_03.gif"  /> {% endif%}
+						<span class="activeindexname">
+							<a class="selOuter" id="jgzy">机构主页<span >▼</span>
+								<select id="main_url" style="top: -6px;margin-left: 10px;">
+									<option value="/org/{{org.id}}/">机构主页</option>
+									<option value="/event/{{org.id}}/org_mainpage/">同城主页</option>
+								</select>
+							</a>
+						</span>
+						<script>
+							$("#jgzy").change(function loca_url(){
+									window.location.href = ''+$('#main_url').val()+'';
+								}
+							);
+						</script>
+					<div class="addguanzhu">
+						<a href="##" id="followit">加关注</a>
+					</div>
+				</div>
+				<div class="orgjbxinxi">
+					<div class="orgjbxinxil">
+						<div class="comment-rst" id="sum_stars">
+							<span title=""><img style="float: left;height: 13px;margin-right: 7px;margin-top: 4px;width: 64px;" src="{{STATIC_URL}}img/p_{{org.rating.star}}.jpg" /></span><a  href="/org/{{org.id}}/review/" class="course_zhe">{{org.rating.votes}}封点评</a> | <span class="cankao">参考价格</span><span class="addguanzhu1">¥{{org.rating.price|floatformat:0}}</span>
+						</div>
+						<div class="jigoudafen">
+							<div class="jigoudafenl" style="margin-left: 12px;">
+								师资：
+							</div>
+							<div>
+								<span id="teacher_total"><span class="progres-list2"> <span class="power" style="width:{{teacher_total_bar}}%"></span> </span>
+								<a class="nite" href="#">{{teacher_total|floatformat}}</a></span>
+							</div>
+							<div class="jigoudafenl" style="margin-left: 12px;">
+								环境：
+							</div>
+							<div>
+								<span id="environment_total"><span class="progres-list2"> <span class="power" style="width:{{environment_total_bar}}%"></span> </span>
+								<a class="nite" href="#">{{environment_total|floatformat}}</a></span>
+							</div>
+							<div class="jigoudafenl" style="margin-left: 12px;">
+								孩子喜欢：
+							</div>
+							<div>
+								<span id="enjoy_total"><span class="progres-list2"> <span class="power" style="width:{{enjoy_total_bar}}%"></span> </span>
+								<a class="nite" href="#">{{enjoy_total|floatformat}}</a></span>
+							</div>
+							 <div class="orgdetail_btn" id="order_button">
+							 	{% if order_flag %}
+							 		<img src="{{STATIC_URL}}img/freeordered.gif">
+							 	{% else %}
+								 	{% if user.is_authenticated %}
+										<a onclick="logined_order_org()" style="cursor: pointer;"><img src="{{STATIC_URL}}img/detail_06.gif"></a>
+									{% else %}
+										<a onclick="unlogined_order_org()" style="cursor: pointer;"><img src="{{STATIC_URL}}img/detail_06.gif"></a>
+									{% endif %}
+								{% endif %}
+							 </div>
+						</div>
+						<div class="desc-list">
+							<ul>
+								<li style="margin-left: 12px;">
+									机构特色：
+									{% for feature in org.features.all %}
+									<a href="/search/?city=1&style=list&type=org&feature={{feature.id}}" target="_blank">{{ feature.name }}</a>
+									{% endfor %}
+								</li>
+								<li>
+									适合年龄段：
+									{% for age_bracket in org.age_brackets.all %}
+									<a href="/search/?city=1&style=list&type=org&age={{age_bracket.id}}" target="_blank">{{ age_bracket.name }}</a>
+									{% endfor %}
+								</li>
+								<li style="margin-left: 12px;">
+									咨询电话：<span class="zixundh">{{org.tel}}</span>
+								</li>
+								<li style="margin-left: 12px;">
+									<div id="hours_dialog" title="营业时间">
+									    <p>{{org.hours}}</p>
+									</div>
+									营业时间：{{org.hours|slice:":20"}}{% if 20 > org.hours|length %}{% else %}<a href="##" id="hours">[详细]</a>{% endif %}
+								</li>
+								<li style="margin-left: 35px;" >
+									<div id="address_info_dialog" title="地址">
+									    <p>{{org.address}}</p>
+									</div>
+									地址：{{org.address|slice:":20"}}{% if 20 > org.address|length %}{% else %}<a href="##" id="address">[详细]</a>{% endif %}
+								</li>
+								<li style="margin-left: 12px;">
+									<div id="traffic_info_dialog" title="交通信息">
+									    <p>{{org.traffic_info}}</p>
+									</div>
+									交通信息：{{org.traffic_info|slice:":20"}}{% if 20 > org.traffic_info|length %}{% else %}<a href="##" id="traffic_info">[详细]</a>{% endif %}
+								</li>
+							</ul>
+						</div>
+						<div class="orgdianping">
+							<div class="orgdianpingl">
+								<div class="wydp"><div class="zxtwbtn"><a onclick="all_button('#review');" style="color: #ffffff;">我要点评</a></div></div>
+								<div class="zxtw"><div class="zxtwbtn1"><a onclick="show_cq()" style="color: #ffffff;">咨询提问</a></div></div>
+							</div>
+							<div class="orgdianpingr">
+<!-- 		collect						 -->
+								{% if user.is_authenticated%}
+								<span class="orgsc" id="user_collect"><a onclick="button_tool('{{user.id}}','{{org.id}}','org','user_collect','user_cancle_collect','cancle_collect_count','collect')">收藏</a><span class="orgsc1" id="type_count">({{org.bookmark_count}})</span></span>
+								<span class="orgsc" id="user_cancle_collect" style="display: none"><a  onclick="cancle_button_tools('{{user.id}}','{{org.id}}','org','user_collect','user_cancle_collect','cancle_collect_count','collect')">取消收藏</a><span class="orgsc1" id="cancle_collect_count">({{org.bookmark_count}})</span></span>
+								{% else %}
+								<span class="orgsc"><a onclick="all_button('#')">收藏</a><span class="orgsc1">({{org.bookmark_count}})</span></span>
+								{% endif %}
+<!-- 		enjoy						 -->
+								{% if user.is_authenticated%}
+								<span class="orgsg" id="user_enjoy"><a onclick="button_tool('{{user.id}}','{{org.id}}','org','user_enjoy','user_cancle_enjoy','cancle_enjoy_count','enjoy')">喜欢</a><span class="orgsc1" id="type_count">({{org.enjoy_count}})</span></span>
+								<span class="orgsg" id="user_cancle_enjoy" style="display: none"><a  onclick="cancle_button_tools('{{user.id}}','{{org.id}}','org','user_enjoy','user_cancle_enjoy','cancle_enjoy_count','enjoy')">取消喜欢</a><span class="orgsc1" id="cancle_enjoy_count">({{org.enjoy_count}})</span></span>
+								{% else %}
+								<span class="orgsg"><a onclick="all_button('#')">喜欢</a><span class="orgsc1">({{org.enjoy_count}})</span></span>
+								{% endif %}
+<!-- 		claim						 -->
+								<!-- <span class="orgsg"><a href="##" onclick="all_button('/org/{{org.id}}/finish')">上过</a><span class="orgsc1"></span></span>
+								&nbsp; -->
+								{% if org_claim_show_flag %}
+									{% if user.is_authenticated %}
+										<span class="orgsg2"><a href="/org/{{org.id}}/owner/">认领机构</a></span>
+									{% else %}
+										<script>
+											function cliam_org_check(url) {
+												alert("请登录后认领机构.");
+												window.location.href = url;
+											}
+										</script>
+										<span class="orgsg2"><a onclick="cliam_org_check('/account/login/?next=/org/{{org.id}}/owner/')">认领机构</a></span>
+									{% endif %}
+								{% endif%}
+								{% if org_claim_pending_flag %}<span class="orgsg2">认领审核中</span>{% endif%}
+							</div>
+
+						</div>
+					</div>
+		<div class="orgjbxinxir">
+<!-- 		右边滚动开始	 -->
+
+			        <div id="p7ssm">
+						<div id="p7ssm_cf">
+							&nbsp;
+						</div>
+						<div id="p7ssm_loading"><img src="{{STATIC_URL}}img/loading.gif" alt="" width="78" height="8" />
+						</div>
+						<table id="p7ssm_fstbl" border="0" cellpadding="0" cellspacing="0" summary="Fullsize Image">
+							<tr>
+								<td>
+								<div id="p7ssm_fullsize">
+									<div id="p7ssm_fsc">
+										<div id="p7ssm_fsw">
+											<div id="p7ssm_fsimg">
+												<a href="javascript:;" id="p7ssm_fslink"><img src="{{MEDIA_URL}}{{org.large_thumb_logo}}" alt="{{org}}" name="p7ssm_im" width="221" height="166" border="0" id="p7ssm_im"/></a>
+											</div>
+											<div id="p7ssm_description"></div>
+										</div>
+									</div>
+								</div></td>
+							</tr>
+						</table>
+						<div id="p7SSMwhmb">
+							<div id="p7ssm_thumbs">
+								<div id="p7SSMwp_1">
+									<div class="p7ssm_thumb_section">
+										<ul>
+											<!-- 修改内容开始 -->
+											{% if photo_list_all != "12" %}
+											{% for photo in photo_list_all|slice:":3" %}
+											<li>
+												<a href="{{MEDIA_URL}}{{photo.large_thumb_logo}}"> <img src="{{MEDIA_URL}}{{photo.small_thumb_logo}}" alt="{{photo.photo_title}}" width="221" height="245" /></a>
+												<div class="p7ssm_lk">
+													<a href="##">点击查看详情</a>
+												</div>
+												<!-- <div class="p7ssm_fd">
+													{{photo.photo_title}}
+												</div> -->
+											</li>
+											{% endfor %}
+											{% else %}
+											<li>
+												<a href="{{MEDIA_URL}}{{org.large_thumb_logo}}"> <img src="{{MEDIA_URL}}{{org.small_thumb_logo}}" alt="{{org}}" width="221" height="245" /></a>
+												<div class="p7ssm_lk">
+													<a href="##">点击查看详情</a>
+												</div>
+												<!-- <div class="p7ssm_fd">
+													{{org.name}}
+												</div> -->
+											</li>
+											<li>
+												<a href="{{MEDIA_URL}}{{org.large_thumb_logo}}"> <img src="{{MEDIA_URL}}{{org.small_thumb_logo}}" alt="{{org}}" width="221" height="245" /></a>
+												<div class="p7ssm_lk">
+													<a href="##">点击查看详情</a>
+												</div>
+												<!-- <div class="p7ssm_fd">
+													{{org.name}}
+												</div> -->
+											</li>
+											<li>
+												<a href="{{MEDIA_URL}}{{org.large_thumb_logo}}"> <img src="{{MEDIA_URL}}{{org.small_thumb_logo}}" alt="{{org}}" width="221" height="245" /></a>
+												<div class="p7ssm_lk">
+													<a href="##">点击查看详情</a>
+												</div>
+												<!-- <div class="p7ssm_fd">
+													{{org.name}}
+												</div> -->
+											</li>
+											{% endif %}
+											<!-- 修改内容结束 -->
+										</ul>
+										<br class="p7ssm_clearThumbs" />
+									</div>
+								</div>
+							</div>
+						</div>
+						<div id="p7ssm_toolbar">
+							<div class="p7ssm_sectionTrigger">
+								<a id="p7SSMtp_1" href="#">New Image Set</a>
+							</div>
+							<div id="p7ssm_dragbar" title="Move">
+								<span>Move</span>
+							</div>
+							<div id="p7ssm_preview">
+								<table summary="Thumbnail Preview">
+									<tr>
+										<td><img src="{{MEDIA_URL}}{{org.large_thumb_logo}}" alt="{{org}}" /></td>
+									</tr>
+								</table>
+							</div>
+							<div id="p7ssm_tools">
+								<table border="0" cellpadding="0" cellspacing="0" summary="Slideshow Toolbar">
+									<tr>
+										<td>
+										<div id="p7ssm_nav_wrapper">
+											<a id="p7SSMtnav" href="#" title="Menu"><em>Navigate</em></a>
+											<div id="p7SSMwnav">
+												<div id="p7ssm_navList">
+													<ul>
+														<li></li>
+													</ul>
+												</div>
+											</div>
+										</div></td>
+										<td><a href="#" title="Hide or Show Thumbnails" id="p7SSMthmb"><em>Hide Thumbs</em></a></td>
+										<td><a href="#" id="p7ssm_first" title="First Image"><em>First</em></a></td>
+										<td><a href="#" id="p7ssm_prev" title="Previous Image"><em>Previous</em></a></td>
+										<td><a href="#" id="p7ssm_pp" class="p7ssm_pause" title="Pause"><em>Pause</em></a></td>
+										<td><a href="#" id="p7ssm_next" title="Next Image"><em>Next</em></a></td>
+										<td><a href="#" id="p7ssm_last" title="Last Image"><em>Last</em></a></td>
+										<td>
+										<div id="p7ssm_slidechannel">
+											<div id="p7ssm_slider">
+												<a href="#" id="p7ssm_slidebar" title="Speed:"><em>Set Speed</em></a>
+											</div>
+										</div></td>
+									</tr>
+								</table>
+							</div>
+						</div>
+						<script type="text/javascript">P7_SSMinit(1, 1, 1, 1, 0, 1, 1, 1, 5);</script>
+					</div>
+            <!-- 		右边滚动开结束                  -->
+						<div class="fengxiang">
+							分享到：
+							<div class="fengxiang2">
+								<!-- JiaThis Button BEGIN -->
+								<div class="jiathis_style">
+									<a class="jiathis_button_qzone"></a>
+									<a class="jiathis_button_tsina"></a>
+									<a class="jiathis_button_tqq"></a>
+									<a class="jiathis_button_renren"></a>
+									<a class="jiathis_button_kaixin001"></a>
+									<a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jtico jtico_jiathis" target="_blank"></a>
+									<a class="jiathis_counter_style"></a>
+								</div>
+								<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=1356584400997834" charset="utf-8"></script>
+								<!-- JiaThis Button END -->
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!--   详细信息开始   -->
+		<div class="orgtab" id="tabs">
+			<div class="ta-age-c0y">
+				<ul class="nav nav-tabs">
+					<li >
+						<a href="#detail" class="ta-set tabs_css" data-toggle="tab" id="tab_1" onclick="tabs_view(1)">详细信息 </a>
+					</li>
+					<li>
+						<a href="#photo" class="tabs_css"  data-toggle="tab" id="tab_2" onclick="tabs_view(2)">图片</a>
+					</li>
+					<li>
+						<a href="#course" class="tabs_css" data-toggle="tab" id="tab_3" onclick="tabs_view(3)">课程</a>
+					</li>
+					<li>
+						<a href="#familyActivity" class="tabs_css" data-toggle="tab" id="tab_4" onclick="tabs_view(4)">亲子活动</a>
+					</li>
+					<li>
+						<a href="#promotion" class="tabs_css" data-toggle="tab" id="tab_5" onclick="tabs_view(5)">促销信息</a>
+					</li>
+				</ul>
+			</div>
+
+			<div class="tab-content">
+				<div class="tab-pane active" id="detail">
+					<div class="orgxxxinxi">
+						<div class="orgtitle">
+							{{org.name}}介绍
+						</div>
+						<p>
+							{{org.introduction|slice:":200"}}
+						</p>
+						
+						<p>
+							{{org.detail|safe}}
+						</p>
+						<p style="width: 632px;">
+							<br />
+							联系电话：{{org.tel}}
+							<br />
+						</p>
+						<!--  <p>详情:{{org.detail|cut:"</p>"|cut:"<p>"}}<br></p> -->
+					</div>
+
+				</div>
+
+				<!--图片信息开始-->
+				<div class="tab-pane"style="width:100%;height:96.5%;float: left;overflow: auto; border:0px solid;SCROLLBAR-BASE-COLOR:#FFFFFF;"id="photo">
+					<div class="orgpicmore">
+					<div class="orgpic11">
+						<ul class="orgpiclist">
+							{% if photo_list_all != "12" %}
+							{% for org_pic in photo_list_all|slice:":6" %}
+							<li>
+								<a class="fancybox-buttons" data-fancybox-group="button" href="{{MEDIA_URL}}{{org_pic.photo_image}}"><img src="{{MEDIA_URL}}{{org_pic.small_thumb_logo}}" alt="点击查看大图！"width="170px;" height="130px;"/></a>
+								<p  class="orgpictxt">
+									<!-- <a href="{% url manager org.id %}?sort=piclist&gallery_id={{org_pic.gallery_id}}" target="_self">{{org_pic.photo_title}}</a> -->
+									<a href="##">{{org_pic.photo_title}}</a>
+								</p>
+							</li>
+							{% endfor %}
+							{% else %}
+							<style>
+								.orgpicmores {
+								    margin: 20px auto 8px 30px;
+								    text-align: center;
+								    width: 630px;
+								    height: 30px;
+								}
+							</style>
+							<div class="orgpicmores">机构暂时未上传图片.</div>
+							{% endif %}
+						</ul>
+					</div>
+						{% if 7 > photo_list_all|length %}{% else %}<span class="yhdptxt32"><a href="#">更多图片</a></span><a href="#"><img src="{{ STATIC_URL }}img/orgdetail_46.gif"  /></a>{% endif %}
+					</div>
+				</div>
+				<!--图片信息结束-->
+				<!--课程信息开始-->
+				<div class="tab-pane" id="course">	
+									
+				<div class="orgpic">
+					<div class="activecontent1">
+					{% if course_list %}
+						{% for course in course_list|slice:":6" %}
+					<div class="course_conl">
+			       <div class="orgcourse">
+						{% if course.large_thumb_logo %} <a href="/course/{{course.id}}/course_detail" target="_blank"><img src="{{MEDIA_URL}}{{course.large_thumb_logo}}" /></a>
+						{% else %}
+						<a href="/course/{{course.id}}/course_detail" target="_blank"><img src="{{ STATIC_URL }}img/default_course.jpg" width="94" height="94"/></a>
+						{% endif %}
+					</div>
+			        <div class="course-right">
+			          <div class="c-r1">
+			            <div ><span class="activename"><a href="/course/{{course.id}}/course_detail" target="_blank">{{course.name}}</a></span></div>
+			            <div class="course-detail1">
+			              <ul>
+							<li>
+								{{course.org}}
+							</li>
+							<li>
+								优惠价：<span  class="course_zhe">¥{{course.fee|floatformat:"0"}}</span>
+							</li>
+							<li>
+								报名人数：<span class="course_zhe">{{course.register_num}}</span>30人
+							</li>
+							<li>
+								适合年龄段：{% for age_bracket in course.age_brackets.all|slice:":1" %}
+								{{ age_bracket.name }}
+								{% endfor %}
+							</li>
+						 </ul>
+			            </div>
+			          </div>
+			        </div>
+				</div>
+				{% if forloop.counter|divisibleby:2 %}
+				<hr class="xu1" size="1">
+				{% endif %}	
+				{% endfor %}
+				{% else %}
+				<p>
+					<div class="orgpicmore">没有找到符合条件的课程。</div>
+				</p>
+				{% endif %}	
+				</div>
+		<!-- 		<hr class="xu1" size="1"> -->
+				{% if 7 > course_list|length %}{% else %}<div class="orgpicmore"><span class="yhdptxt32"><a href="/org/{{org.id}}/course_list/" target="_blank">显示更多</a></span><a href="#"><img src="{{ STATIC_URL }}img/orgdetail_46.gif" style="vertical-align: baseline;"/></a></div>{% endif %}
+				</div>
+			</div>
+				<!--课程信息结束-->
+				<!--亲子活动信息开始-->
+				<div class="tab-pane" id="familyActivity">
+					<div class="orgactive">	
+					<div class="activecontent1">
+						{% if activitie_list %}
+						{% for activitie in activitie_list|slice:":6" %}
+						<div class="active_conl">
+							<div class="orgactive-left">
+								{% if activitie.large_thumb_logo %} <a href="/familyactivity/{{activitie.id}}/familyactivity_detail" target="_blank"><img src="{{MEDIA_URL}}{{activitie.large_thumb_logo}}" /></a>
+								{% else %}
+								<a href="/familyactivity/{{activitie.id}}/familyactivity_detail" target="_blank"><img src="{{ STATIC_URL }}img/default_course.jpg" width="94" height="94"/></a>
+								{% endif %}
+							</div>
+							<div class="orgactiv-right">
+								<div class="c-r1">
+									<div >
+										<span class="activename"><a href="/familyactivity/{{activitie.id}}/familyactivity_detail" target="_blank">{{activitie.name}}</a></span><span class="activeprice">¥{{activitie.price|floatformat:"0"}}</span>
+									</div>
+									<div class="active-detail">
+										<ul>
+											<li>
+												活动时间：<span  class="course_zhe">{{activitie.start_time|date:"m月d号"}}-{{activitie.end_time|date:"m月d号"}}</span>
+											</li>
+											<li>
+												举办地点：{{activitie.address}}
+											</li>
+											<li>
+												报名信息：<span class="course_zhe">{{activitie.headcount}}</span> 报名 <span class="course_zhe"> {{activitie.register_count}} </span> 推荐
+											</li>
+											<li>
+												适合年龄段：{% for age_bracket in activitie.fa_age.all|slice:":1" %}
+												{{ age_bracket.name }}
+												{% endfor %}
+											</li>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+						{% if forloop.counter|divisibleby:2 %}
+						<hr class="xu1" size="1">
+						{% endif %}	
+						{% endfor %}
+						{% else %}
+						<p>
+							<div class="orgpicmore">没有找到符合条件的亲子活动。</div>
+						</p>
+						{% endif %}
+					</div>
+					{% if 7 > activitie_list|length %}{% else %}<div class="orgpicmore"><span class="yhdptxt32"><a href="/org/{{org.id}}/activity_list/" target="_blank">显示更多</a></span><a href="#"><img src="{{ STATIC_URL }}img/orgdetail_46.gif" style="vertical-align: baseline;"/></a></div>{% endif %}
+					</div>
+				</div>
+				<!--亲子活动信息结束-->
+				<!--促销信息开始-->
+				<div class="tab-pane" id="promotion">
+					<div class="orgactive">
+					<div class="pro_con">
+						{% if dis_prom %}
+						{% for promotion in dis_prom|slice:":6" %}
+						<div class="pro_conl">
+							<div class="pro-left">
+								{% if promotion.prom_middle %}
+								<a href="/promotion/{{promotion.prom_id}}/promotion_detail" target="_blank"><img src="{{MEDIA_URL}}{{promotion.prom_middle}}" width="94" height="94"/></a>
+								{% else %} <a href="/promotion/{{promotion.prom_id}}/promotion_detail" target="_blank"><img src="{{ STATIC_URL }}img/default_promotion.jpg" width="94" height="94"/></a> {% endif %}
+							</div>
+							<div class="pro-right">
+								<div class="c-r1">
+									<div >
+										<span class="activename"><a href="/promotion/{{promotion.prom_id}}/promotion_detail" target="_blank">{{promotion.prom_name}}</a></span>
+									</div>
+									<div class="pro-detail1">
+										<ul>
+											<li>
+												<span class="proprice">¥{{promotion.prom_now_cost|floatformat:"0"}}</span><span class="orgsc1">价值¥<s>{{promotion.prom_original_cost|floatformat:"0"}}</s></span>
+											</li>
+											<li>
+												<span class="course_zhe">{{promotion.prom_register_count}}</span>人已购买
+											</li>
+											<li>
+												<span class="orgsc1">剩余时间：{{promotion.prom_time}}天</span>
+											</li>
+										</ul>
+										<div class="courseyy1">
+											<a href="#"><img src="{{ STATIC_URL }}img/orgpromotion_08.gif" alt="查看" border="0" /></a>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						{% if forloop.counter|divisibleby:2 %}
+						<hr class="xu1" size="1">
+						{% endif %}	
+						{% endfor %}
+						{% else %}
+						<p>
+							<div class="orgpicmore">没有找到符合条件的机构促销.</div>
+						</p>
+						{% endif %}
+					</div>
+					{% if 7 > dis_prom|length %}{% else %}<div class="orgpicmore"><span class="yhdptxt32"><a href="/org/{{org.id}}/promotion_list" target="_blank">查看 更多促销信息</a></span><a href="#"><img src="{{ STATIC_URL }}img/orgdetail_46.gif" style="vertical-align: baseline;"/></a></div>	{% endif %}
+				</div>
+				</div>
+				<!--促销信息结束-->
+			</div>
+		</div>
+		<!--   详细信息结束   -->
+		<div class="orgyhdp">
+			<div id="bgA" class="agxixi1_2">
+				<div id="fontA" class="agtab11" onclick="setTab03SynA(30);document.getElementById('bgA').className='agxixi1_1'">
+					用户点评
+				</div>
+				<div id="fontB" class="agtab22" onclick="setTab03SynA(40);document.getElementById('bgA').className='agxixi2_2'">
+					咨询提问
+				</div>
+			</div>
+			<div id=agTabTab03ConA>
+				<div class="orgdianpcon">
+					<div class="orgdianpconl">
+						<div class="orgdianp">
+							<a href="/org/{{org.id}}/review/">{{org.name}}的点评</a>
+						</div>
+					
+							<div class="jigoudafen">
+								<div class="jigoudafenl2">
+									<img src="{{ STATIC_URL }}img/orgdetail_42.gif" />&nbsp;&nbsp;
+								</div>
+								<div>
+									<span id="5_rating"><span class="progres-list2" ><span class="power" style="width:{{rating_bar.5}}%"></span></span>
+									<a class="dianpnum1" >{{rating_count.5}}封</a></span>
+								</div>
+								<div class="jigoudafenl2">
+									<img src="{{ STATIC_URL }}img/star_13.jpg" />&nbsp;&nbsp;
+								</div>
+								<div>
+									<span id="4_rating"><span class="progres-list2" id="4_rating"> <span class="power" style="width:{{rating_bar.4}}%"></span> </span>
+									<a class="dianpnum1" >{{rating_count.4}}封</a></span>
+								</div>
+								<div class="jigoudafenl2">
+									<img src="{{ STATIC_URL }}img/star_15.jpg" />&nbsp;&nbsp;
+								</div>
+								<div>
+									<span id="3_rating"><span class="progres-list2" id="3_rating"> <span class="power" style="width:{{rating_bar.3}}%"></span> </span>
+									<a class="dianpnum1" >{{rating_count.3}}封</a></span>
+								</div>
+								<div class="jigoudafenl2">
+									<img src="{{ STATIC_URL }}img/orgdetail_43.gif" />&nbsp;&nbsp;
+								</div>
+								<div>
+									<span id="2_rating"><span class="progres-list2" id="2_rating"> <span class="power" style="width:{{rating_bar.2}}%"></span> </span>
+									<a class="dianpnum1" >{{rating_count.2}}封</a></span>
+								</div>
+								<div class="jigoudafenl2">
+									<img src="{{ STATIC_URL }}img/orgdetail_44.gif" />&nbsp;&nbsp;
+								</div>
+								<div>
+									<span id="1_rating"><span class="progres-list2" id="1_rating"> <span class="power" style="width:{{rating_bar.1}}%"></span> </span>
+									<a class="dianpnum1" >{{rating_count.1}}封</a></span>
+								</div>
+							</div>
+					</div>
+					<div class="orgdianpconr">
+						你心中的{{org.name}}如何？
+						<br />
+						写出来和大家一起分享吧！
+						<div class="dianpbtn">
+							<a  href="##"  onclick="all_button('#review');"><img src="{{ STATIC_URL }}img/orgdetail_32.gif" alt="我要点评"  /></a>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id=agTabTab03ConB style="display:none;height: 119px;">
+				<div class="orgdianpcon">
+					<div class="orgdianpconl"><div class="orgdianp"><a href="{% url consult_and_question org.id %}?sort=cq_list&&org_id={{org.id}}" target="_blank">{{org.name}}的咨询提问</a></div>
+						<div class="zixunlist">
+							<ul id="ajax_cq">
+								{% if CQ_list %}
+								{% for cq in CQ_list|slice:":4"%}
+								<li><a href="{% url consult_and_question org.id %}?sort=cq_detail&cq_id={{cq.id}}" target="_blank">
+									{% if 20 > cq.contents|length %}{{cq.contents}}{% else %}{{cq.contents|slice:":20"}}..?{% endif %}</a></li>
+								{% endfor %}
+								{% else %}
+								<div id="cq_de">此机构还没有任何咨询提问,抢沙发吧~</div>
+								{% endif %}
+							</ul>
+						</div>
+					</div>
+					<div class="orgdianpconr">你对{{org.name}}有什么疑问？<br />
+							我们将竭诚为你回答！	
+				  	<div class="dianpbtn"><a onclick="show_cq()" style="color: #ffffff;">咨询提问</a></div></div>
+				</div>
+			</div>
+			<div class="dianppx">
+				排序：<span class="sear_in1">
+					<select id="ReviewSort">
+						<option value="latest">最新点评</option>
+						<option value="hot">最热的点评</option>
+						<option value="useful">最有价值的点评</option>
+					</select>
+				</span>
+			</div>
+			<div class="diapxx" id="reviewList">
+				{% include "org/review_included.html" with review_list=review_list %}
+			</div>
+			<div class="yhdianpbg">
+				对{{org.name}}进行点评
+			</div>
+			<div class="yhdianp1" id="review">
+
+				<form id="reviewForm">
+					{% csrf_token %}
+					<table width="630" border="0" cellspacing="0" cellpadding="0">
+						<tr>
+							<td width="68" class="yhdianp1l" id="T_star">总体评价：<span class="pjstar">*</span></td>
+
+							<td width="10" ></td>
+							<td width="173" >
+							<div class="pingjiastar">
+								<div id="star" style="width:200px;"></div>
+							</div></td>
+							<td colspan="3" ><span class="pjstar"></span></td>
+						</tr>
+						<tr>
+							<td width="68" height="42" class="yhdianp1l" id="T_enviroment">环境：<span class="pjstar">*</span></td>
+							<td>&nbsp;</td>
+							<td>
+							<div class="score-wrap">
+								<ul onmouseleave="end_view1();">
+									<li>
+										<a class="square-1 envscore" href="javascript:;" data-hint="差" data-rate-value="1" title="差" id="e_1" onclick="show_view1(1);" onmouseover="start_view1(1);">1</a>
+									</li>
+									<li>
+										<a class="square-2 envscore" href="javascript:;" data-hint="一般" data-rate-value="2" title="一般" id="e_2" onclick="show_view1(2);" onmouseover="start_view1(2);">2</a>
+									</li>
+									<li>
+										<a class="square-3 envscore" href="javascript:;" data-hint="好" data-rate-value="3" title="好" id="e_3" onclick="show_view1(3);" onmouseover="start_view1(3);">3</a>
+									</li>
+									<li>
+										<a class="square-4 envscore" href="javascript:;" data-hint="很好" data-rate-value="4" title="很好" id="e_4" onclick="show_view1(4);" onmouseover="start_view1(4);">4</a>
+									</li>
+									<li>
+										<a class="square-5 envscore" href="javascript:;" data-hint="非常好" data-rate-value="5" title="非常好" id="e_5" onclick="show_view1(5);" onmouseover="start_view1(5);">5</a>
+									</li>
+								</ul>
+							</div>
+							<input id="environment" type="hidden" name="environment"/>
+							</td>
+							<td width="13">&nbsp;</td>
+							<td width="67" height="42" class="yhdianp1l" id="T_teacher">师资：<span class="pjstar">*</span></td>
+							<td>
+							<div class="score-wrap">
+								<ul onmouseleave="end_view2();">
+									<li>
+										<a class="square-1 teascore" href="javascript:;" data-hint="差" data-rate-value="1" title="差" id="tea_1" onclick="show_view2(1);" onmouseover="start_view2(1);">1</a>
+									</li>
+									<li>
+										<a class="square-2 teascore " href="javascript:;" data-hint="一般" data-rate-value="2" title="一般" id="tea_2" onclick="show_view2(2);" onmouseover="start_view2(2);">2</a>
+									</li>
+									<li>
+										<a class="square-3 teascore" href="javascript:;" data-hint="好" data-rate-value="3" title="好" id="tea_3" onclick="show_view2(3);" onmouseover="start_view2(3);">3</a>
+									</li>
+									<li>
+										<a class="square-4 teascore" href="javascript:;" data-hint="很好" data-rate-value="4" title="很好" id="tea_4" onclick="show_view2(4);" onmouseover="start_view2(4);">4</a>
+									</li>
+									<li>
+										<a class="square-5 teascore" href="javascript:;" data-hint="非常好" data-rate-value="5" title="非常好" id="tea_5" onclick="show_view2(5);" onmouseover="start_view2(5);">5</a>
+									</li>
+								</ul>
+							</div>
+							<input id="teacher" type="hidden" name="teacher"/>
+							</td>
+						</tr>
+						<tr>
+							<td width="68" height="42" class="yhdianp1l" id="T_enjoy">孩子喜欢：<span class="pjstar">*</span></td>
+							<td>&nbsp;</td>
+							<td>
+							<div class="score-wrap">
+								<ul onmouseleave="end_view3();">
+									<li>
+										<a class="square-1 boyscore" href="javascript:;" data-hint="差" data-rate-value="1" title="差" id="b_1" onclick="show_view3(1);" onmouseover="start_view3(1);">1</a>
+									</li>
+									<li>
+										<a class="square-2 boyscore " href="javascript:;" data-hint="一般" data-rate-value="2" title="一般" id="b_2" onclick="show_view3(2);" onmouseover="start_view3(2);">2</a>
+									</li>
+									<li>
+										<a class="square-3 boyscore" href="javascript:;" data-hint="好" data-rate-value="3" title="好" id="b_3" onclick="show_view3(3);" onmouseover="start_view3(3);">3</a>
+									</li>
+									<li>
+										<a class="square-4 boyscore" href="javascript:;" data-hint="很好" data-rate-value="4" title="很好" id="b_4" onclick="show_view3(4)" onmouseover="start_view3(4);">4</a>
+									</li>
+									<li>
+										<a class="square-5 boyscore" href="javascript:;" data-hint="非常好" data-rate-value="5" title="非常好" id="b_5" onclick="show_view3(5)" onmouseover="start_view3(5);">5</a>
+									</li>
+								</ul>
+							</div>
+							<input id="enjoy" type="hidden" name="enjoy"/>
+							<input id="pricing" type="hidden" name="pricing" value="1"/>
+							</td>
+							<td>&nbsp;</td>
+							<td class="yhdianp12" id="T_cost">价格：<span class="pjstar">*</span></td>
+							<td class="yhdianp12">
+							<input id="cost" type="text" name="textfield"  class="keshi"/>
+							<span> 元/课时</span></td>
+						</tr>
+						<tr>
+							<td width="68" class="yhdianp1l" valign="top">评价：<span class="pjstar">*</span></td>
+							<td>&nbsp;</td>
+							<td colspan="4"><label><textarea name="messageContent" id="comment" onkeyup="gbcount()" class="pingjiacon"></textarea></label></td>
+						</tr>
+						<tr>
+							<td>&nbsp;</td>
+							<td>&nbsp;</td>
+							<td class="yhdianp12" style="width: 1400px;">最多字数：250字 已用字数:<u id="used">0</u> 剩余字数:<u id="remain"> 250</u></td>
+						</tr>
+						<tr>
+							<td>&nbsp;</td>
+							<td>&nbsp;</td>
+							<td colspan="4">
+							<div class="tijiaodp">
+								<div class="tijiaodpl">
+									<div class="tjdp">
+										<input id="AddReviewBtn" type="button" class="tjdp" value="" />
+									</div>
+								</div>
+								<!-- <div class="tijiaodpr">
+									且同步发送到 <span class="fengx" ><a href="#" class="fengx"><img src="{{ STATIC_URL }}img/fengx1.gif" border="0" /></a></span>
+								</div> -->
+							</div></td>
+						</tr>
+					</table>
+				</form>
+
+			</div>
+		</div>
+	</div>
+	<div class="agencyr">
+		<div class="newagency">
+			地图
+		</div>
+		<div class="newagencycon">
+			<div class="shop-location">
+				<div id="map_canvas" style="width:260px;height: 240px;">
+
+				</div>
+			</div>
+		</div>
+		<div class="newagency">
+			看该机构的人还看过
+		</div>
+		
+		<div class="newagencycon">
+			{% if also_seen_orgs%}
+			{% for otherOrg in also_seen_orgs %}
+			<div class="newagcon" id="nearby_ul">
+				<div class="newagconl">
+					<div class="newagimg1">
+						{% if otherOrg.small_thumb_logo %}
+						<a href="/org/{{otherOrg.id}}/" target="_blank"><img src="{{MEDIA_URL}}{{otherOrg.small_thumb_logo}}" alt="{{otherOrg.name}}" border="0"  width="73px" height="53px"/></a>
+						{% else%}
+						<a href="/org/{{otherOrg.id}}/" target="_blank"><img src="{{ STATIC_URL }}img/default_org.jpg" alt="{{otherOrg.name}}" border="0"  width="73px" height="53px"/></a>
+						{%endif%}
+					</div>
+				</div>
+				<div class="newagconr">
+					<div class="newagtxt3">
+						<ul >
+							<li>
+								<h4><a href="/org/{{otherOrg.id}}/" target="_blank">{{otherOrg.name}} {% if otherOrg.owner %}<img src="{{ STATIC_URL }}img/orgdetail_03.gif"  /> {% endif %}</a></h4>
+							</li>
+							<li>
+								<img style="float: left;height: 13px;margin-right: 7px;margin-top: 4px;width: 64px;" src="{{STATIC_URL}}img/p_{{otherOrg.rating.star}}.jpg" />
+							</li>
+							<li>
+								<span class="agdpnum">{% if otherOrg.view_count %}{{otherOrg.view_count}}{% else %}0{% endif %}</span>浏览,<span class="agdpnum">{% if otherOrg.rating.votes %}{{otherOrg.rating.votes}}{% else %}0{% endif %}</span>点评
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<div class="newagline"></div>
+			{% endfor%}
+			{% else %}
+			没有符合条件的机构。
+			{% endif%}
+		</div>
+		
+		<div class="newagency">
+			附近的机构
+		</div>
+
+		<div class="newagencycon">
+			{% if nearby_list%}
+			{% for near_org in nearby_list %}
+			<div class="newagcon" id="nearby_ul">
+				<div class="newagconl">
+					<div class="newagimg1">
+						{% if near_org.large_thumb_logo %}
+						<a href="/org/{{near_org.id}}/" target="_blank"><img src="{{ MEDIA_URL }}{{near_org.large_thumb_logo}}" alt="{{near_org.name}}" border="0" width="73px" height="53px"/></a>
+						{% else%}
+						<a href="/org/{{near_org.id}}/" target="_blank"><img src="{{ STATIC_URL }}img/default_org.jpg" alt="{{near_org.name}}" border="0" width="73px" height="53px"/></a>
+						{%endif%}
+					</div>
+				</div>
+				<div class="newagconr">
+					<div class="newagtxt3">
+						<ul >
+							<li>
+								<h4><a href="/org/{{near_org.id}}/" target="_blank">{{near_org.name}} {% if near_org.owner %}<img src="{{ STATIC_URL }}img/orgdetail_03.gif"  /> {% endif %}</a></h4>
+							</li>
+							<li>
+								<img style="float: left;height: 13px;margin-right: 7px;margin-top: 4px;width: 64px;" src="{{STATIC_URL}}img/p_{{near_org.rating.star}}.jpg" />
+								<span class="orgdetaildp"><span class="course_zhe">{% if near_org.rating.votes %}{{near_org.rating.votes}}{% else %}0{% endif %}</span>封点评</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<div class="newagline"></div>
+			{% endfor%}
+			{% else %}
+			附近没有符合条件的机构。
+			{% endif%}
+		</div>
+	</div>
+<!-- 	 -->
+<div class="yuyuecon" id="order_dialog"  title="快速预定/登录" style="width: 661px; min-height: 102.267px; height: 358px;" style=" background: none repeat scroll 0 0 #7CAB09;" style="display: none;">
+	<div class="yuyuedl">
+		<div class="yuyuedl1">
+			<div class="logincon_l">
+					{% csrf_token %}
+					<div class="yuyue_txt1">
+						联系人：
+					</div>
+					<div class="yuyue_input">
+						<input class="logincon_input1"  type="text" name="order_username" size="30" placeholder="先生/女士..." value="" id="order_username"/>
+						<span class="logincon_inputs" id="user_acnum">请输入您的名字（长度：2-10）</span>
+					</div>
+					<div class="yuyue_txt2">
+						电话：
+					</div>
+					<div class="yuyue_input">
+						<input class="logincon_input1"  type="text" name="phone_num" size="30" value="" placeholder="固话（格式：区号-号码）/手机..." id="phone_num"/>
+						<span class="logincon_inputs" id="phone_number">请输入正确的联系方式,方便回复您的预约.</span>
+					</div>
+					<div class="yuyue_butcon yuyue_but">
+						<input type="submit" class="" value="" onclick="check_submit()"/>
+					</div>
+					<div class="yuyue_txt">
+						<div class="yuyue_txtl">
+							保密协议：
+						</div>
+						<div class="yuyue_txtr">
+							私人资料绝对保密，只提供给相关机构,绝不外泄。课程顾问将于2-3个工作日内与您联系，请保持电话畅通！
+						</div>
+					</div>
+			</div>
+		</div>
+		<div class="yuyuedl2">
+			<span class="yuyuexx">注册用户可享受以下优势：</span>
+			<br />
+			<br />
+			<span class="yuyuexx1">1：免费参加试听课程
+				<br />
+				<br />
+				2：获取积分，享受物质奖励。
+				<br />
+				<br />
+				3：VIP用户服务
+				<br />
+			</span>
+			<div class="yuyue_logincon">
+				<div class="yuyue_login">
+					<input type="submit" class="" value="登 录" onclick="javascript:window.location.href='/account/login/?next=/org/{{org.id}}/'" />
+					<input type="submit" class=""  value="注 册" onclick="javascript:window.location.href='/account/signup/'"/>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="consult_and_question_dialog" class="ui-dialog-content ui-widget-content2"title="咨询提问" style="display: none;">
+	{% csrf_token %}
+	<fieldset style="border: 0 none;height: 130px;margin: 0;padding: 0;">
+		<div class="yuyue_input2">
+			<textarea name="cq_content" size="30" value="" placeholder="对机构有疑问或在育儿方面需要老师解惑，请在此输入内容。" id="cq_content" style="width: 379px;height: 187px;"></textarea>
+			<span class="logincon_inputs" id="cq_content_warns">请输入...</span>
+		</div>
+	</fieldset>
+</div>
+
+<div id="cq_success_dialog" class="ui-dialog-content ui-widget-content2"title="咨询提问" style="display: none;">
+	<div class="zixuncg">提交成功</div>
+	<div class="zixuncgtxt">
+		1、机构人员将在2个工作日内予以回复,请耐心的等待<br />
+		2、回复答案将显示于咨询提问详情版块,请注意查看<br />
+		3、已注册会员可直接在个人中心查看
+	</div>
+</div>
+
+<div id="logined_order_dialog" class="ui-dialog-content ui-widget-content2"title="填写联系方式" style="display: none;">
+	<p id="checkmsg">
+		为了方便与您及时联系，请填写你的联系方式
+	</p>
+	{% csrf_token %}
+	<fieldset style="border: 0 none;height: 130px;margin: 0;padding: 0;">
+		<div class="yuyue_txt1">
+			您的电话：
+		</div>
+		<input type="hidden" name="order_username2" value="{{user.username}}" id="order_username2"/>
+		<div class="yuyue_input2">
+			<input style="width: 310px;" type="text" name="phone_num2" size="30" value="" placeholder="固话（格式：区号-号码）/手机..." id="phone_num2"/>
+			<span class="logincon_inputs" id="phone_number2">请输入正确的联系方式,方便回复您的预约.</span>
+		</div>
+	</fieldset>
+</div>
+<!--  -->
+<script defer="defer">
+	$(function() {
+	  document.getElementById("fontA").style.color = "#ffffff";
+	  document.getElementById("fontB").style.color = "#7bab07";
+	})
+	
+	function setTab03SynA(i) {
+		selectTab03SynA(i);
+	}
+
+	function selectTab03SynA(i) {
+		switch(i) {
+			case 30:
+				document.getElementById("agTabTab03ConA").style.display = "block";
+				document.getElementById("agTabTab03ConB").style.display = "none";
+				document.getElementById("fontA").style.color = "#ffffff";
+				document.getElementById("fontB").style.color = "#7bab07";
+				break;
+			case 40:
+				document.getElementById("agTabTab03ConA").style.display = "none";
+				document.getElementById("agTabTab03ConB").style.display = "block";
+				document.getElementById("fontA").style.color = "#7bab07";
+				document.getElementById("fontB").style.color = "#ffffff";
+				break;
+
+		}
+	}
+
+	function show_view1(items) {
+		$('.envscore').removeClass('active-square');
+		$('#e_' + items).addClass('active-square');
+		$('#environment').val(items);
+	}
+
+	function start_view1(val){
+		$('.envscore').removeClass('active-square');
+		$('#e_' + val).addClass('active-square');
+	}
+	
+	function end_view1(){
+		$('.envscore').removeClass('active-square');
+		var obj = $('#environment').val();
+		$('#e_' + obj).addClass('active-square');
+	}
+	
+	function show_view2(items) {
+		$('.teascore').removeClass('active-square');
+		$('#tea_' + items).addClass('active-square');
+		$('#teacher').val(items);
+	}
+	
+	function start_view2(val){
+		$('.teascore').removeClass('active-square');
+		$('#tea_' + val).addClass('active-square');
+	}
+	
+	function end_view2(){
+		$('.teascore').removeClass('active-square');
+		var obj = $('#teacher').val();
+		$('#tea_' + obj).addClass('active-square');
+	}
+
+	function show_view3(items) {
+		$('.boyscore').removeClass('active-square');
+		$('#b_' + items).addClass('active-square');
+		$('#enjoy').val(items);
+	}
+	
+	function start_view3(val){
+		$('.boyscore').removeClass('active-square');
+		$('#b_' + val).addClass('active-square');
+	}
+	
+	function end_view3(){
+		$('.boyscore').removeClass('active-square');
+		var obj = $('#enjoy').val();
+		$('#b_' + obj).addClass('active-square');
+	}
+	
+	function tabs_view(items) {
+		$($('.tabs_css').removeClass('ta-set'));
+		$('#tab_' + items + '').addClass('ta-set tabs_css');
+	}
+
+</script>
+	{{ form.map }}
+	{{ form.media.js }}
+<script defer="defer">
+	
+	$(document).ajaxStart(function() {
+		$('#spinner').show();
+	}).ajaxStop(function() {
+		$('#spinner').hide();
+	});
+
+	var timeout = 500;
+	var closetimer = 0;
+	var ddmenuitem = 0;
+
+	function jsddm_open() {
+		jsddm_canceltimer();
+		jsddm_close();
+		ddmenuitem = $(this).find('ul').eq(0).css('visibility', 'visible');
+	}
+
+	function jsddm_close() {
+		if(ddmenuitem){
+			ddmenuitem.css('visibility', 'hidden');
+		}
+	}
+
+	function jsddm_timer() {
+		closetimer = window.setTimeout(jsddm_close, timeout);
+	}
+
+	function jsddm_canceltimer() {
+		if(closetimer) {
+			window.clearTimeout(closetimer);
+			closetimer = null;
+		}
+	}
+
+	$(document).ready(function() {
+		$('#jsddm > li').bind('mouseover', jsddm_open);
+		$('#jsddm > li').bind('mouseout', jsddm_timer);
+	});
+
+	document.onclick = jsddm_close;
+
+	function setTab03Syn(i) {
+		selectTab03Syn(i);
+	}
+
+	function selectTab03Syn(i) {
+		switch(i) {
+			case 1:
+				document.getElementById("TabTab03Con1").style.display = "block";
+				document.getElementById("TabTab03Con2").style.display = "none";
+				document.getElementById("font1").style.color = "#ffffff";
+				document.getElementById("font2").style.color = "#666666";
+				break;
+			case 2:
+				document.getElementById("TabTab03Con1").style.display = "none";
+				document.getElementById("TabTab03Con2").style.display = "block";
+				document.getElementById("font1").style.color = "#666666";
+				document.getElementById("font2").style.color = "#ffffff";
+				break;
+		}
+	}
+	
+	window.myobj = {
+		markerOver : function() {
+			this.openInfoWindow();
+		},
+		markerOut : function() {
+			this.closeInfoWindow();
+		}
+	};
+
+	function loadReviews_relate(){
+		url = '/org/getSumscore/{{org.id}}/';
+		$.ajax({
+			 url: url,
+			 data: {},
+			 success: function(data){
+				$('#sum_stars').html('<span title=""><img style="float: left;height: 13px;margin-right: 7px;margin-top: 4px;width: 64px;" src="{{STATIC_URL}}img/p_'+data['star']+'.jpg" /></span><a  href="/org/{{org.id}}/review/" class="course_zhe">'+data['votes']+'封点评</a> | <span class="cankao">参考价格</span><span class="addguanzhu1">¥'+data['cost']+'</span>');
+			 	$('#1_rating').html('<span class="progres-list2" ><span class="power" style="width:'+data['1_rating_bar']+'%"></span></span><a class="dianpnum1" href="#">'+data['1_rating']+'封</a></span>');
+			 	$('#2_rating').html('<span class="progres-list2" ><span class="power" style="width:'+data['2_rating_bar']+'%"></span></span><a class="dianpnum1" href="#">'+data['2_rating']+'封</a></span>');
+			 	$('#3_rating').html('<span class="progres-list2" ><span class="power" style="width:'+data['3_rating_bar']+'%"></span></span><a class="dianpnum1" href="#">'+data['3_rating']+'封</a></span>');
+			 	$('#4_rating').html('<span class="progres-list2" ><span class="power" style="width:'+data['4_rating_bar']+'%"></span></span><a class="dianpnum1" href="#">'+data['4_rating']+'封</a></span>');
+			 	$('#5_rating').html('<span class="progres-list2" ><span class="power" style="width:'+data['5_rating_bar']+'%"></span></span><a class="dianpnum1" href="#">'+data['5_rating']+'封</a></span>');
+			 	$('#environment_total').html('<span class="progres-list2"> <span class="power" style="width:'+data['environment_total_bar']+'%"></span></span><a class="nite" href="#">'+data['environment_total']+'</a>');
+			 	$('#teacher_total').html('<span class="progres-list2"> <span class="power" style="width:'+data['teacher_total_bar']+'%"></span></span><a class="nite" href="#">'+data['teacher_total']+'</a>');
+			 	$('#enjoy_total').html('<span class="progres-list2"> <span class="power" style="width:'+data['enjoy_total_bar']+'%"></span></span><a class="nite" href="#">'+data['enjoy_total']+'</a>');
+			 }
+		});
+	}
+	
+	function loadReviews() {
+		url = '/org/getReviews/{{org.id}}/';
+		data = {
+			sort : $('#ReviewSort').val()
+		};
+		$.ajax({ url: url,
+				 data: data,
+				 success: function(data){
+				    $('#reviewList').html(data);
+				    initialReplyComment();
+				 }
+			  });
+	}
+
+	function initRating() {
+		$('#star').raty({
+			path : '{{ STATIC_URL }}img/',
+			cancel : false,
+			cancelOff : 'cancel-off-big.png',
+			cancelOn : 'cancel-on-big.png',
+			half : false,
+			width : '300px',
+			size : 24,
+			starHalf : 'star-half-big.png',
+			starOff : 'star-off-big.png',
+			starOn : 'star-on-big.png'
+		});
+	}
+
+	function clearReviewForm() {
+		$($('.envscore').removeClass('active-square'));
+		$($('.teascore').removeClass('active-square'));
+		$($('.boyscore').removeClass('active-square'));
+		$('#reviewForm')[0].reset();
+		initRating();
+	}
+
+	function initialReplyComment() {
+		$('a.replyComment').click(function() {
+			$(this).next().toggle();
+			return false;
+		});
+	}
+
+	function initialTabs() {
+		$('#myTab a').click(function(e) {
+			e.preventDefault();
+			$(this).tab('show');
+		})
+	}
+
+	function loadmap() {
+		map = new BMap.Map("map_canvas");
+		var point = new BMap.Point("{{org.longitude}}","{{org.latitude}}");
+		map.centerAndZoom(point, 16);
+		var opts = {offset: new BMap.Size(0, 0)};
+		map.addControl(new BMap.NavigationControl(opts)); //平移缩放控件
+		marker = new BMap.Marker(point , {'title':'{{ org.address }}','enableDragging':false});
+		map.addOverlay(marker);
+	}
+
+	function rating() {
+		var ratingScore = $('#star input[name="score"]').val();
+		data = {
+			org_id : $('#org_id').val(),
+			rating : ratingScore,
+			comment : $('#comment').val(),
+			environment : $('#environment').val(),
+			teacher : $('#teacher').val(),
+			enjoy : $('#enjoy').val(),
+			price : $('#pricing').val(),
+			cost : $('#cost').val()
+		};
+		$.ajax({
+			type : "GET",
+			url : "/org/rating",
+			data : data,
+			dataType : "json",
+			success : function(data) {
+				//alert(data.result);
+				if(data.result == 'ok') {
+					loadReviews();
+					loadReviews_relate();
+					clearReviewForm();
+					alert('点评成功!');
+				} else {
+					alert('点评失败！- -');
+				}
+			},
+			error : function(xhr, ajaxOptions, thrownError) {
+				//alert(thrownError);
+				//alert(xhr.status);
+				alert('保存失败!- -');
+			}
+		});
+	}
+	
+	$(document).ready(function() {
+		initRating();
+		initialReplyComment();
+		$('#ReviewSort').on('change', function(event) {
+			loadReviews();
+		});
+
+		$('#AddReviewBtn').on('click', function(event) {
+
+			if($('#star input[name="score"]').val() == '') {
+				$('#T_star').css({
+					color : '#FF63B5'
+				});
+			} else {
+				$('#T_star').css({
+					color : '#333333'
+				});
+			}
+
+			if($('#environment').val() == "") {
+				$('#T_enviroment').css({
+					color : '#FF63B5'
+				});
+			} else {
+				$('#T_enviroment').css({
+					color : '#333333'
+				});
+			}
+
+			if($('#teacher').val() == "") {
+				$('#T_teacher').css({
+					color : '#FF63B5'
+				});
+			} else {
+				$('#T_teacher').css({
+					color : '#333333'
+				});
+			}
+
+			if($('#enjoy').val() == "") {
+				$('#T_enjoy').css({
+					color : '#FF63B5'
+				});
+			} else {
+				$('#T_enjoy').css({
+					color : '#333333'
+				});
+			}
+
+			if($('#cost').val() == "") {
+				$('#T_cost').css({
+					color : '#FF63B5'
+				});
+			} else {
+				$('#T_cost').css({
+					color : '#333333'
+				});
+			}
+
+			if(is_user_login()) {
+				if($('#star input[name="score"]').val() != '' && $('#environment').val() != '' && $('#teacher').val() != '' && $('#enjoy').val() != '' && $('#cost').val().replace(/(^\s*)|(\s*$)/g, "") != '') {
+					var reg = /^-?[1-9]+(\.\d+)?$|^-?0(\.\d+)?$|^-?[1-9]+[0-9]*(\.\d+)?$/;
+					if(reg.test($('#cost').val())) {
+						if($('#comment').val().replace(/(^\s*)|(\s*$)/g, "").length < 8 || $('#comment').val().replace(/(^\s*)|(\s*$)/g, "").length > 250) {
+							alert('您的评价字数不符合要求.当前字数:' + $('#comment').val().replace(/(^\s*)|(\s*$)/g, "").length + ',系统限制:8-250');
+						} else {
+							rating();
+						}
+					} else {
+						alert('价格应为数字!');
+						return false;
+					}
+				} else {
+					//alert('带*号为必填项!');
+					return false;
+				}
+			} else {
+				//alert("用户您好，请登录后在点评！");
+				showlogin();
+				return false;
+			}
+		});
+		loadmap();
+		initialTabs();
+
+	});
+	function gbcount() {
+		var max;
+		max = 250;
+		if($("#comment").val().replace(/(^\s*)|(\s*$)/g, "").length > max) {
+			$("#comment").val($("#comment").val().replace(/(^\s*)|(\s*$)/g, "").substring(0, max));
+			$("#used").html('max');
+			$("#remain").html(0);
+			alert("留言不能超过250个字!");
+		} else {
+			$("#used").html($("#comment").val().replace(/(^\s*)|(\s*$)/g, "").length);
+			$("#remain").html(max - $("#comment").val().replace(/(^\s*)|(\s*$)/g, "").length);
+		}
+	}
+</script>
+
+<script defer="defer">
+// 未登录预约开始  
+	$('#order_dialog').dialog({
+        autoOpen: false,
+        height: 380,
+		width: 680,
+        show: "blind",
+        hide: "slide"
+	 });
+	
+	function unlogined_order_org() {
+    	$('#order_dialog').dialog("open");
+        return false;
+	}
+	
+	var _tag = $('#order_username'), _editors = $('#phone_num'), _tags = $('#user_acnum'), _editor = $('#phone_number');
+	var reg = /^-?[1-9]+(\.\d+)?$|^-?0(\.\d+)?$|^-?[1-9]+[0-9]*(\.\d+)?$/;
+	var tab = /(^((0[1,2]{1}\d{1}-?\d{8})|(0[3-9]{1}\d{2}-?\d{7,8}))$)|(^0?(13[0-9]|15[0-35-9]|18[0236789]|14[57])[0-9]{8}$)/;
+	
+	_tag.blur(function() {
+		var self = $(this);
+		if(self.val() === "") {
+			_tags.text("联系人名字不可为空.");
+			if(_tags.hasClass('logincon_inputs')) {
+				_tags.removeClass('logincon_inputs');
+				_tags.addClass('misspsw');
+			}
+		} else if(self.val().length < 2 || self.val().length > 10) {
+			if(_tags.hasClass('logincon_inputs')) {
+				_tags.removeClass('logincon_inputs');
+				_tags.addClass('misspsw');
+			}
+			_tags.text("请输入有效的长度（2-10）");
+		} else {
+			if(_tags.hasClass('misspsw')) {
+				_tags.removeClass('misspsw');
+				_tags.addClass('logincon_inputs');
+			}
+			_tags.text("输入正确");
+		}
+	});
+
+	_editors.blur(function() {
+		var self = $(this);
+		if(self.val() === "") {
+			_editor.text("请输入号码.");
+			if(_editor.hasClass('logincon_inputs')) {
+				_editor.removeClass('logincon_inputs');
+				_editor.addClass('misspsw');
+			}
+		} else if(tab.test(self.val()) == false) {
+			if(_editor.hasClass('logincon_inputs')) {
+				_editor.removeClass('logincon_inputs');
+				_editor.addClass('misspsw');
+			}
+			_editor.text("手机或固话不正确，请重新输入手机或固话号！");
+		} else {
+			if(_editor.hasClass('misspsw')) {
+				_editor.removeClass('misspsw');
+				_editor.addClass('logincon_inputs');
+			}
+			_editor.text("输入正确");
+		}
+
+	});
+
+	function check_submit() {
+		_tag.blur();
+		_editors.blur();
+		if(_editor.hasClass('misspsw') || _tags.hasClass('misspsw')) {
+			return false;
+		} else {
+			$.ajax({
+					type : "get",
+					url : "/org/unlogin_order/",
+					data : {
+						'type':'org',
+						'type_id':'{{org.id}}',
+						'order_username' : _tag.val(),
+						'phone_num' : _editors.val()
+					},
+					dataType : "json",
+					success : function(data) {
+						if(data['user_info'] == "true") {
+							alert("预约成功！");
+							$("#order_dialog").dialog("close");
+							$('#order_button').html('<img src="{{STATIC_URL}}img/freeordered.gif">');
+						} else if(data['user_info'] == "false") {
+							alert("抱歉，预约失败，请重试！");
+							$("#order_dialog").dialog("close");
+						}
+					},
+					error : function() {
+						$("#order_dialog").dialog("close");
+					}
+				});
+		}
+	}
+// 未登录预约结束
+// 已登录预约开始
+	$("#logined_order_dialog").dialog({
+			autoOpen : false,
+			show : "explode",
+			//hide: "explode",
+			height : 300,
+			width : 350,
+			modal : true,
+			buttons : {
+				"取消" : function() {
+					$("#logined_order_dialog").dialog("close");
+				},
+				"提交" : function() {
+					check_phnum();
+				}
+			},
+			close : function() {
+				//allFields.val( "" ).removeClass( "ui-state-error" );
+			}
+	});
+		
+	function shouw() {
+			$("#logined_order_dialog").dialog("open");
+		}
+		
+	function logined_order_org() {
+			$.ajax({
+				type : "get",
+				url : "/org/logined_order/",
+				data : {},
+				dataType : "json",
+				success : function(data) {
+					if(data['user_info'] == "true") {
+						var tel = data['tel']
+						$('#phone_num2').val(tel);
+						shouw();
+					} else if(data['user_info'] == "false") {
+						shouw();
+					} else if(data['user_info'] == "middle") {
+						alert("您已预约，请勿重复预约！");
+					}
+				},
+				error : function() {
+					// alert("error");
+				}
+			});
+		}
+		
+		var _tag2 = $('#order_username2'),_editors2 = $('#phone_num2'), _editor2 = $('#phone_number2');
+		var reg = /^-?[1-9]+(\.\d+)?$|^-?0(\.\d+)?$|^-?[1-9]+[0-9]*(\.\d+)?$/;
+		var tab = /(^((0[1,2]{1}\d{1}-?\d{8})|(0[3-9]{1}\d{2}-?\d{7,8}))$)|(^0?(13[0-9]|15[0-35-9]|18[0236789]|14[57])[0-9]{8}$)/;
+
+		_editors2.blur(function() {
+			if(_editors2.val() === "") {
+				_editor2.text("请输入号码！");
+				if(_editor2.hasClass('logincon_inputs')) {
+					_editor2.removeClass('logincon_inputs');
+					_editor2.addClass('misspsw');
+				}
+			} else if(tab.test(_editors2.val()) == false) {
+				if(_editor2.hasClass('logincon_inputs')) {
+					_editor2.removeClass('logincon_inputs');
+					_editor2.addClass('misspsw');
+				}
+				_editor2.text("手机或固话不正确，请重新输入手机或固话号！");
+			} else {
+				if(_editor2.hasClass('misspsw')) {
+					_editor2.removeClass('misspsw');
+					_editor2.addClass('logincon_inputs');
+				}
+				_editor2.text("输入正确");
+			}
+		});
+
+		function check_phnum() {
+			if(_editor2.hasClass('misspsw')) {
+				return false;
+			} else {
+				$.ajax({
+					type : "get",
+					url : "/org/dialog_order/",
+					data : {
+						'type':'org',
+						'type_id':'{{org.id}}',
+						'order_username' : _tag2.val(),
+						'phone_num' : _editors2.val()
+					},
+					dataType : "json",
+					success : function(data) {
+						if(data['user_info'] == "true") {
+							alert("预约成功！");
+							$("#logined_order_dialog").dialog("close");
+							$('#order_button').html('<img src="{{STATIC_URL}}img/freeordered.gif">');
+						} else if(data['user_info'] == "false") {
+							alert("抱歉，预约失败，请重试！");
+							$("#logined_order_dialog").dialog("close");
+						}
+					},
+					error : function() {
+						$("#logined_order_dialog").dialog("close");
+					}
+				});
+			}
+		}
+// 已登录 预约结束 
+// 咨询提问
+	$("#consult_and_question_dialog").dialog({
+		autoOpen : false,
+		show : "explode",
+		//hide: "explode",
+		height : 348,
+		width : 415,
+		modal : true,
+		buttons : {
+			"取消" : function() {
+				$("#consult_and_question_dialog").dialog("close");
+			},
+			"提交" : function() {
+				submit_cq();
+			}
+		},
+		close : function() {
+			//allFields.val( "" ).removeClass( "ui-state-error" );
+		}
+	});
+	
+	$("#cq_success_dialog").dialog({
+		autoOpen : false,
+		show : "explode",
+		//hide: "explode",
+		height : 348,
+		width : 415,
+		modal : true,
+		close : function() {
+			//allFields.val( "" ).removeClass( "ui-state-error" );
+		}
+	});
+	
+	function show_cq() {
+		$("#consult_and_question_dialog").dialog("open");
+	}
+	function show_cq_success() {
+		$("#consult_and_question_dialog").dialog("close");
+		$("#cq_success_dialog").dialog("open");
+	}
+		
+	function submit_cq() {
+		if($('#cq_content_warns').hasClass('misspsw')||$('#cq_content').val() === ""){
+			$('#cq_content_warns').text("内容不能为空！");
+			if($('#cq_content_warns').hasClass('logincon_inputs')) {
+				$('#cq_content_warns').removeClass('logincon_inputs');
+				$('#cq_content_warns').addClass('misspsw');
+			}
+		}else{
+				$.ajax({
+					type : "get",
+					url : "{% url consult_and_question org.id %}?sort=submit_cq",
+					data : {'cq_contents':$('#cq_content').val(),'org':'{{org.id}}'},
+					dataType : "json",
+					success : function(data) {
+						var cq_content = data['cq_contents'].length;
+						if(data['mes']=='sub_true'){
+							show_cq_success();
+							if(cq_content<20){
+								var cq_contents = data['cq_contents']
+								$('#ajax_cq').append('<li><a href="{% url consult_and_question org.id %}?sort=cq_detail&cq_id='+data['cq_id']+'" target="_blank">'+cq_contents+'</a></li>');
+								$('#cq_de').html('');
+							}else{
+								var cq_contents = data['cq_contents'].substring(0,20); 
+								$('#ajax_cq').append('<li><a href="{% url consult_and_question org.id %}?sort=cq_detail&cq_id='+data['cq_id']+'" target="_blank">'+cq_contents+'..?</a></li>');
+								$('#cq_de').html('');
+							}
+						}
+					},
+					error : function() {
+						//alert("error");
+					}
+				});
+			}
+		}
+		
+		$('#cq_content').blur(function() {
+			if($('#cq_content').val() === "") {
+				$('#cq_content_warns').text("内容不能为空！");
+				if($('#cq_content_warns').hasClass('logincon_inputs')) {
+					$('#cq_content_warns').removeClass('logincon_inputs');
+					$('#cq_content_warns').addClass('misspsw');
+				}
+			} else {
+				if($('#cq_content_warns').hasClass('misspsw')) {
+					$('#cq_content_warns').removeClass('misspsw');
+					$('#cq_content_warns').addClass('logincon_inputs');
+				}
+				$('#cq_content_warns').text("输入正确！");
+			}
+		});
+// 咨询提问结束  
+</script>
+{% endblock %}
